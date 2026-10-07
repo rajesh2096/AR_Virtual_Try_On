@@ -1,25 +1,33 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
 import os
-from app.config import settings
-from app.database import engine, Base
+from pathlib import Path
+from app.config import settings, BACKEND_DIR
+from app.database import engine, Base, SessionLocal
 from app.services.image_service import ImageService
-from app.routers import auth, garments, tryon
+from app.services.taxonomy_seed import seed_category_taxonomy
+
+# Import all updated routers
+from app.routers import auth, profile, person_profiles, categories, garments, favorites, outfits, tryon
 
 # Ensure upload directory hierarchy exists
 ImageService.ensure_upload_dirs()
 
-# Initialize tables automatically if needed (for dev/local setup)
+# Initialize tables & run idempotent seed
 try:
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_category_taxonomy(db)
+    finally:
+        db.close()
 except Exception as e:
-    print(f"Warning: Database tables could not be created automatically on startup: {e}")
+    print(f"Warning: Database initialization or taxonomy seeding notice: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    openapi_url="/api/v1/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -33,24 +41,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount local filesystem uploads to serve images statically
-if not os.path.exists(settings.UPLOAD_DIR):
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# Mount local uploads directory for image serving
+upload_path = Path(settings.UPLOAD_DIR)
+upload_path.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
 
-app.mount(f"/{settings.UPLOAD_DIR}", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+# --- Register Modern v1 API Routers (/api/v1/...) ---
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(profile.router, prefix="/api/v1")
+app.include_router(person_profiles.router, prefix="/api/v1")
+app.include_router(categories.router, prefix="/api/v1")
+app.include_router(garments.router, prefix="/api/v1")
+app.include_router(favorites.router, prefix="/api/v1")
+app.include_router(outfits.router, prefix="/api/v1")
+app.include_router(tryon.router, prefix="/api/v1")
 
-# Include API Routers
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(garments.router, prefix=settings.API_V1_STR)
-app.include_router(tryon.router, prefix=settings.API_V1_STR)
+# --- Register Backward Compatibility Routers (/api/...) for Flutter Phase 1 ---
+app.include_router(auth.router, prefix="/api")
+app.include_router(garments.router, prefix="/api")
+app.include_router(tryon.router, prefix="/api")
 
-@app.get(f"{settings.API_V1_STR}/health", tags=["Health"])
+@app.get("/api/v1/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
 def health_check():
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "database_configured": bool(settings.MYSQL_DATABASE),
-        "uploads_ready": os.path.exists(settings.UPLOAD_DIR)
+        "uploads_ready": upload_path.exists(),
+        "api_versions": ["/api/v1", "/api"]
     }
 
 @app.get("/", tags=["Root"])
@@ -58,5 +77,6 @@ def root():
     return {
         "message": "Welcome to AI Virtual Dress Try-On API",
         "docs": "/docs",
-        "health": f"{settings.API_V1_STR}/health"
+        "v1_base": "/api/v1",
+        "health": "/api/v1/health"
     }

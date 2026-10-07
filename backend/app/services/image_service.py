@@ -4,29 +4,31 @@ import aiofiles
 from PIL import Image
 import io
 import mimetypes
+from pathlib import Path
 from fastapi import UploadFile, HTTPException, status
-from app.config import settings
+from app.config import settings, BACKEND_DIR
 
 class ImageService:
     ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
     ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/jpg"}
     MAX_FILE_SIZE_BYTES = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    VALID_SUBFOLDERS = {"users", "garments", "tryon_results", "person_profiles"}
 
     @classmethod
     def ensure_upload_dirs(cls):
-        base_dir = settings.UPLOAD_DIR
-        for sub in ["users", "garments", "tryon_results"]:
-            os.makedirs(os.path.join(base_dir, sub), exist_ok=True)
+        base_dir = Path(settings.UPLOAD_DIR)
+        for sub in cls.VALID_SUBFOLDERS:
+            (base_dir / sub).mkdir(parents=True, exist_ok=True)
 
     @classmethod
     async def validate_and_save_image(cls, file: UploadFile, subfolder: str) -> str:
         cls.ensure_upload_dirs()
 
         # Check subfolder security against path traversal
-        if subfolder not in ["users", "garments", "tryon_results"]:
+        if subfolder not in cls.VALID_SUBFOLDERS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid target upload category"
+                detail=f"Invalid target upload category. Allowed: {', '.join(cls.VALID_SUBFOLDERS)}"
             )
 
         # 1. Validate file extension
@@ -68,7 +70,7 @@ class ImageService:
                     detail=f"Unsupported image format: '{image_format}'. Must be JPEG or PNG"
                 )
         except HTTPException:
-            rethrow
+            raise
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -77,12 +79,12 @@ class ImageService:
 
         # 4. Generate secure unique filename
         unique_filename = f"{uuid.uuid4().hex}{ext}"
-        relative_path = os.path.join(settings.UPLOAD_DIR, subfolder, unique_filename).replace("\\", "/")
-        full_path = os.path.abspath(relative_path)
+        relative_path = f"uploads/{subfolder}/{unique_filename}"
+        full_path = (BACKEND_DIR / relative_path).resolve()
 
         # Check path traversal
-        upload_root = os.path.abspath(settings.UPLOAD_DIR)
-        if not full_path.startswith(upload_root):
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        if not str(full_path).startswith(str(upload_root)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid file path resolution"
@@ -98,10 +100,10 @@ class ImageService:
     def delete_file(cls, relative_path: str):
         if not relative_path:
             return
-        upload_root = os.path.abspath(settings.UPLOAD_DIR)
-        full_path = os.path.abspath(relative_path)
-        if full_path.startswith(upload_root) and os.path.exists(full_path):
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        full_path = (BACKEND_DIR / relative_path).resolve()
+        if str(full_path).startswith(str(upload_root)) and full_path.exists():
             try:
-                os.remove(full_path)
+                full_path.unlink()
             except OSError:
                 pass
