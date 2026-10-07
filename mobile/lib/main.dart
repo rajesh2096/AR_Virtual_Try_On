@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'core/constants/app_constants.dart';
+import 'core/theme/app_theme.dart';
 import 'screens/auth/splash_screen.dart';
 
 void main() {
@@ -15,28 +15,7 @@ class VirtualTryOnApp extends StatelessWidget {
     return MaterialApp(
       title: 'AI Virtual Try-On',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
-        primaryColor: AppColors.primary,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.primary,
-          secondary: AppColors.secondary,
-          surface: AppColors.surface,
-          error: AppColors.error,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
       home: const SplashScreen(),
     );
   }

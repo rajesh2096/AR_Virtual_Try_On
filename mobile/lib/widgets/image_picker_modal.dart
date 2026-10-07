@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/constants/app_constants.dart';
+import '../core/theme/app_tokens.dart';
+import '../core/theme/app_typography.dart';
+import '../core/utils/app_haptics.dart';
 
 class ImagePickerModal extends StatelessWidget {
   final Function(File) onImageSelected;
@@ -21,9 +24,7 @@ class ImagePickerModal extends StatelessWidget {
     return showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.sheetRadius),
       builder: (ctx) => ImagePickerModal(
         onImageSelected: onImageSelected,
         title: title,
@@ -42,6 +43,7 @@ class ImagePickerModal extends StatelessWidget {
         imageQuality: 90,
       );
       if (picked != null) {
+        AppHaptics.mediumImpact();
         onImageSelected(File(picked.path));
       }
     } catch (e) {
@@ -69,47 +71,47 @@ class ImagePickerModal extends StatelessWidget {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: AppRadius.roundedPill,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTypography.headlineMedium,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             ListTile(
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
+              tileColor: AppColors.surfaceElevated,
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppRadius.roundedSm,
                 ),
                 child: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryLight),
               ),
-              title: const Text('Take a Photo (Camera)', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-              subtitle: const Text('Capture using device camera', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              title: const Text('Take a Photo (Camera)', style: AppTypography.titleMedium),
+              subtitle: const Text('Capture using device camera', style: AppTypography.caption),
               onTap: () => _pick(context, ImageSource.camera),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             ListTile(
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.roundedMd),
+              tileColor: AppColors.surfaceElevated,
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AppRadius.roundedSm,
                 ),
                 child: const Icon(Icons.photo_library_rounded, color: AppColors.secondary),
               ),
-              title: const Text('Choose from Gallery', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-              subtitle: const Text('Select existing photo from storage', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              title: const Text('Choose from Gallery', style: AppTypography.titleMedium),
+              subtitle: const Text('Select existing photo from storage', style: AppTypography.caption),
               onTap: () => _pick(context, ImageSource.gallery),
             ),
           ],
