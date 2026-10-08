@@ -61,6 +61,24 @@ class ApiClient {
     }
   }
 
+  static Future<dynamic> put(String endpoint, {Map<String, dynamic>? body, bool requireAuth = true}) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      final headers = await _getHeaders(requireAuth: requireAuth);
+      final response = await http
+          .put(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+          .timeout(const Duration(seconds: 15));
+      return _handleResponse(response);
+    } on SocketException {
+      throw ApiException('Cannot connect to server at ${AppConfig.baseUrl}. Please verify the server is running and reachable.');
+    } on http.ClientException catch (e) {
+      throw ApiException('Network error: ${e.message}');
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('An unexpected error occurred: $e');
+    }
+  }
+
   static Future<dynamic> delete(String endpoint, {bool requireAuth = true}) async {
     try {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
