@@ -107,8 +107,8 @@ class ApiClient {
 
   static Future<dynamic> uploadMultipart({
     required String endpoint,
-    required String fileField,
-    required File file,
+    String? fileField,
+    File? file,
     Map<String, String>? fields,
     bool requireAuth = true,
   }) async {
@@ -127,12 +127,14 @@ class ApiClient {
         request.fields.addAll(fields);
       }
 
-      final mediaType = _getMediaTypeForFile(file.path);
-      request.files.add(await http.MultipartFile.fromPath(
-        fileField,
-        file.path,
-        contentType: mediaType,
-      ));
+      if (file != null && fileField != null && fileField.isNotEmpty && file.path.isNotEmpty) {
+        final mediaType = _getMediaTypeForFile(file.path);
+        request.files.add(await http.MultipartFile.fromPath(
+          fileField,
+          file.path,
+          contentType: mediaType,
+        ));
+      }
 
       final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamedResponse);
